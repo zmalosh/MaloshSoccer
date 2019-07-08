@@ -2,9 +2,9 @@ source('requirements.r')
 source('src/data/get_api_football_json_from_url.R')
 
 get_leagues <- function(){
-  localPath <- 'data/raw/leagues.Rda'
+  localPath <- 'data/raw/leagues.csv'
   if(file.exists(localPath)){
-    leagues <- readRDS(localPath)
+    leagues <- read_csv(localPath)
     return (leagues)
   }
   
@@ -14,6 +14,6 @@ get_leagues <- function(){
   
   json <- get_api_football_json_from_url(url)
   leagues <- json$leagues
-  saveRDS(leagues, localPath)
+  write_csv(leagues, localPath)
   return (leagues)
 }

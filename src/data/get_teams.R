@@ -3,16 +3,16 @@ source('src/data/get_api_football_json_from_url.R')
 
 get_teams_by_league <- function(leagueId){
   url <- paste0('https://api-football-v1.p.rapidapi.com/v2/teams/league/', leagueId)
-  localPath <- paste0('data/raw/teams_', leagueId, '.Rda')
+  localPath <- paste0(getwd(), '/data/raw/teams_', str_pad(leagueId, 4, pad = '0'), '.csv')
   
   if(file.exists(localPath)){
-   teams <- readRDS(localPath)
+   teams <- read_csv(localPath)
    return (teams)
   }
   json <- get_api_football_json_from_url(url)
   teams <- json$teams
   teams$league_id <- leagueId
-  saveRDS(teams, localPath)
+  write_csv(teams, localPath)
   return (teams)
 }
 
