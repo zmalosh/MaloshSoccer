@@ -38,3 +38,4 @@ rsconnect/
 # Raw Data
 *.Rda
 *.json
+*.csv
