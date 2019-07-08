@@ -1,2 +1,2 @@
-# r-project-template
-Base template for an R project
+# MaloshSoccer
+Repository for soccer work
