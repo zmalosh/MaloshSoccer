@@ -4,6 +4,7 @@ author: "Zachary P. Malosh, MS, MBA"
 date: "July 24, 2019"
 output:
   pdf_document:
+    toc: no
     toc_depth: 2
 editor_options: 
   chunk_output_type: console
@@ -20,12 +21,22 @@ update_wd <- function(){
   }
 }
 
+
 knitr::opts_chunk$set(echo = FALSE)
 
 update_wd()
+source('requirements.R')
 source('src/data/get_fixtures.R')
 source('src/data/get_leagues.R')
+
+library(BradleyTerry2)
 ```
+
+# Included Libraries
+The following libraries are used for this analysis:
+
++ *tidyverse*
++ *BradleyTerry2*
 
 # League Selection
 ```{r 'League Selection'}
@@ -41,5 +52,76 @@ The initial model here will be created using game results from La Liga in 2018. 
 # Getting the Games
 ```{r 'Get Games'}
 update_wd()
-esp.games <- get_fixtures_by_league(esp.lg$LeagueId)
+esp.games.raw <- get_fixtures_by_league(esp.lg$LeagueId)
+teams <- esp.games.raw %>%
+  mutate(ID = HomeTeamId,
+         Name = HomeTeamName,
+         Logo = HomeTeamLogo,
+         Venue = str_trim(str_replace(Venue, '\\(.*\\)$', '')),
+         Strength = 1) %>%
+  select(ID, Name, Logo, Venue, Strength) %>%
+  unique() %>%
+  arrange(Name)
+games <- esp.games.raw %>%
+  mutate(Venue = str_trim(str_replace(Venue, '\\(.*\\)$', ''))) %>%
+  select(FixtureId, GameDate, Venue, HomeTeamId, HomeTeamName,
+         AwayTeamId, AwayTeamName, HomeScore, AwayScore) %>%
+  mutate(GameResult = ifelse(HomeScore == AwayScore, 0.5, ifelse(HomeScore > AwayScore, 1, 0)),
+         GameTotal = HomeScore + AwayScore)
 ```
+There are `r nrow(games)` games in the selected league.
+
+## Team Data
+The data found in the table below is available for each team. Strength is defaulted to 1 for all teams to begin. (Logos are omitted due to length.)
+
+```{r 'Display Team Data'}
+knitr::kable(teams %>% select(-Logo), caption = '2018 La Liga Team Data')
+```
+
+## Game Data 
+For each game, the following data is available in the data set:
+
++ Home/Away Team ID
++ Home/Away Team Name
++ Home/Away Score
++ Game Date
++ Venue
+
+A game result value (*GameResult*) is derived as follows:
+
+|  Value |   Result |
+|:------:|:--------:|
+|      0 | Away Win |
+|    0.5 |     Draw |
+|      1 | Home Win |
+
+The game total (*GameTotal*) is calculated as the sum of the home and away scores (*HomeScore + AwayScore*)
+
+## Home Field Advantage Verification
+There is no indicator for whether or not a game is at a neutral site. La Liga has a double round-robin format. Each team should have 38 games, hosting each other team once and playing each other team away once. The following table shows the number of games in a venue as the host team for each team.
+
+```{r 'Verify Home Venues'}
+homeVenues <- games %>%
+  group_by(HomeTeamId, HomeTeamName, Venue) %>%
+  summarise(Games = n()) %>%
+  arrange(HomeTeamName, Games)
+knitr::kable(homeVenues, caption = 'Team Games Hosted per Venue')
+```
+
+Based on there being 19 games hosted for each team at the same site, there are no neutral site games.
+
+# Team Strength with Bradley-Terry Model
+
+The Bradley-Terry pairwise comparison model was used to determine the relative team strengths. The result of the model can be found below.
+
+```{r}
+btm <- BradleyTerry2::BTm(outcome = cbind(games$HomeScore, games$AwayScore),
+                          player1 = data.frame(team = games$HomeTeamName, at.home = 1),
+                          player2 = data.frame(team = games$AwayTeamName, at.home = 0),
+                          formula = ~team + at.home,
+                          id = 'team',
+                          data = games)
+summary(btm)
+```
+
+
