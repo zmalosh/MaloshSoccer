@@ -3,21 +3,21 @@ source('src/data/get_api_football_json_from_url.R')
 
 get_leagues <- function(){
   localPath <- 'data/raw/leagues.csv'
-  cols <- cols(
-    league_id = col_double(),
-    name = col_character(),
-    country = col_character(),
-    country_code = col_character(),
-    season = col_double(),
-    season_start = col_date(format = ""),
-    season_end = col_date(format = ""),
-    logo = col_character(),
-    flag = col_character(),
-    standings = col_double(),
-    is_current = col_double()
-  )
   
   if(file.exists(localPath)){
+    cols <- cols(
+      LeagueId = col_double(),
+      LeagueName = col_character(),
+      Country = col_character(),
+      CountryCode = col_character(),
+      Season = col_double(),
+      SeasonStartDate = col_date(format = ""),
+      SeasonEndDate = col_date(format = ""),
+      LogoUrl = col_character(),
+      FlagUrl = col_character(),
+      HasStandings = col_logical(),
+      IsCurrentSeason = col_logical()
+    )
     leagues <- read_csv(localPath, col_types = cols)
     return (leagues)
   }
