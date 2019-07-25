@@ -40,3 +40,39 @@ get_all_fixtures <- function(){
   }
   return (fixtures)
 }
+
+get_detailed_fixture <- function(fixtureId){
+  url <- paste0('https://api-football-v1.p.rapidapi.com/v2/fixtures/id/', fixtureId)
+  localPath <- paste0(getwd(), '/data/raw/fixtureDetails_', str_pad(fixtureId, 7, pad = '0'), '.Rda')
+  
+  if(file.exists(localPath)){
+    print(localPath)
+    fixture <- readRDS(localPath)
+    return (fixture)
+  }
+  json <- get_api_football_json_from_url(url)
+  fixture <- json$fixtures
+  if(!is.null(fixture)){
+    saveRDS(fixture, localPath)
+  }
+  return (fixture)
+}
+
+get_all_detailed_fixtures <- function(){
+  allFixtureSummaries <- get_all_fixtures() 
+  allFixtureSummaries <- allFixtureSummaries %>% arrange(desc(event_date), fixture_id)
+  allFixtureSummaries <- allFixtureSummaries %>% filter(status %in% c('Match Finished', 'Match Abandoned', 'Match Suspended'))
+  fixtureSummary <- allFixtureSummaries[1,]
+  fixtureId <- fixtureSummary$fixture_id
+  fixtures <- get_detailed_fixture(fixtureId)
+  row.names(fixtures) <- NULL
+  for(i in seq(from = 2, to = nrow(allFixtureSummaries), by = 1)){
+    print(i)
+    fixtureSummary <- allFixtureSummaries[i,]
+    fixtureId <- fixtureSummary$fixture_id
+    fixture <- get_detailed_fixture(fixtureId)
+    row.names(fixture) <- NULL
+    #fixtures <- rbind(fixtures, fixture)
+  }
+  return (fixtures)
+}
