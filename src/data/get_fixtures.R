@@ -3,25 +3,82 @@ source('src/data/get_api_football_json_from_url.R')
 
 get_fixtures_by_league <- function(leagueId){
   url <- paste0('https://api-football-v1.p.rapidapi.com/v2/fixtures/league/', leagueId)
-  localPath <- paste0(getwd(), '/data/raw/fixtures_', str_pad(leagueId, 4, pad = '0'), '.csv')
+  localPath <- paste0(getwd(), '/data/raw/leagueFixtures/fixtures_', str_pad(leagueId, 4, pad = '0'), '.csv')
   
   if(file.exists(localPath)){
-    teams <- read_csv(localPath)
-    return (teams)
+    cols <- cols(
+      FixtureId = col_double(),
+      LeagueId = col_double(),
+      GameDate = col_character(),
+      StatusShort = col_character(),
+      HomeTeamId = col_double(),
+      HomeTeamName = col_character(),
+      AwayTeamId = col_double(),
+      AwayTeamName = col_character(),
+      HomeScore = col_double(),
+      AwayScore = col_double(),
+      ScoreHalfTime = col_character(),
+      ScoreFullTime = col_character(),
+      # ScoreExtraTime = col_character(),
+      # ScorePenalty = col_character(),
+      TimeElapsed = col_double(),
+      Referee = col_character(),
+      Venue = col_character(),
+      Round = col_character(),
+      Status = col_character(),
+      EventTimestamp = col_double(),
+      FirstHalfStart = col_double(),
+      SecondHalfStart = col_double(),
+      HomeTeamLogo = col_character(),
+      AwayTeamLogo = col_character()
+    )
+    fixtures <- read_csv(localPath, col_types = cols)
+    return (fixtures)
   }
+  
   json <- get_api_football_json_from_url(url)
   fixtures <- json$fixtures
-  fixtures$homeTeamId <- fixtures$homeTeam$team_id
-  fixtures$homeTeamName <- fixtures$homeTeam$team_name
-  fixtures$awayTeamId <- fixtures$awayTeam$team_id
-  fixtures$awayTeamName <- fixtures$awayTeam$team_name
+  fixtures$FixtureId <- fixtures$fixture_id
+  fixtures$LeagueId <- fixtures$league_id
+  fixtures$GameDate <- fixtures$event_date
+  fixtures$StatusShort <- fixtures$statusShort
+  fixtures$HomeTeamId <- fixtures$homeTeam$team_id
+  fixtures$HomeTeamName <- fixtures$homeTeam$team_name
+  fixtures$AwayTeamId <- fixtures$awayTeam$team_id
+  fixtures$AwayTeamName <- fixtures$awayTeam$team_name
+  fixtures$HomeScore <- fixtures$goalsHomeTeam
+  fixtures$AwayScore <- fixtures$goalsAwayTeam
+  fixtures$ScoreHalfTime <- as.character(fixtures$score$halftime)
+  fixtures$ScoreFullTime <- as.character(fixtures$score$fulltime)
+  # fixtures$ScoreExtraTime <- fixtures$score$extratime
+  # fixtures$ScorePenalty <- fixtures$score$penalty
+  fixtures$TimeElapsed <- fixtures$elapsed
+  fixtures$Referee <- fixtures$referee
+  fixtures$Venue <- fixtures$venue
+  fixtures$Round <- fixtures$round
+  fixtures$Status <- fixtures$status
+  fixtures$EventTimestamp <- fixtures$event_timestamp
+  fixtures$FirstHalfStart <- fixtures$firstHalfStart
+  fixtures$SecondHalfStart <- fixtures$secondHalfStart
+  fixtures$HomeTeamLogo <- fixtures$homeTeam$logo
+  fixtures$AwayTeamLogo <- fixtures$awayTeam$logo
+  fixtures$fixture_id <- NULL
+  fixtures$league_id <- NULL
   fixtures$homeTeam <- NULL
   fixtures$awayTeam <- NULL
-  fixtures$scoreHalfTime <- fixtures$score$halftime
-  fixtures$scoreFullTime <- fixtures$score$fulltime
-  fixtures$scoreExtraTime <- fixtures$score$extratime
-  fixtures$scorePenalty <- fixtures$score$penalty
   fixtures$score <- NULL
+  fixtures$referee <- NULL
+  fixtures$venue <- NULL
+  fixtures$event_timestamp <- NULL
+  fixtures$firstHalfStart <- NULL
+  fixtures$secondHalfStart <- NULL
+  fixtures$event_date <- NULL
+  fixtures$round <- NULL
+  fixtures$status <- NULL
+  fixtures$statusShort <- NULL
+  fixtures$elapsed <- NULL
+  fixtures$goalsAwayTeam <- NULL
+  fixtures$goalsHomeTeam <- NULL
   write_csv(fixtures, path = localPath)
   return (fixtures)
 }
