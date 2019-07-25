@@ -1,0 +1,45 @@
+---
+title: "Soccer Predictions Using the Bradley Terry Model"
+author: "Zachary P. Malosh, MS, MBA"
+date: "July 24, 2019"
+output:
+  pdf_document:
+    toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+\newpage
+\tableofcontents
+\newpage
+
+```{r setup, include=FALSE}
+update_wd <- function(){
+  if(toupper(basename(getwd())) == 'NOTEBOOKS'){
+    setwd('..')
+  }
+}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+update_wd()
+source('src/data/get_fixtures.R')
+source('src/data/get_leagues.R')
+```
+
+# League Selection
+```{r 'League Selection'}
+update_wd()
+leagues <- get_leagues()
+esp.lg <- leagues %>%
+  filter(Country == 'Spain'
+         & LeagueName == 'Primera Division'
+         & Season == 2018)
+```
+The initial model here will be created using game results from La Liga in 2018. Other leagues will be pulled in to test easily changing between leagues and/or seasons. That season goes from `r esp.lg[1,]$SeasonStartDate` to `r esp.lg[1,]$SeasonEndDate`
+
+# Getting the Games
+```{r 'Get Games'}
+update_wd()
+esp.games <- get_fixtures_by_league(esp.lg$LeagueId)
+```
