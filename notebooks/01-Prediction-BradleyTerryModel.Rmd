@@ -21,6 +21,7 @@ update_wd <- function(){
   }
 }
 
+options(stringsAsFactors = FALSE)
 
 knitr::opts_chunk$set(echo = FALSE)
 
@@ -114,14 +115,98 @@ Based on there being 19 games hosted for each team at the same site, there are n
 
 The Bradley-Terry pairwise comparison model was used to determine the relative team strengths. The result of the model can be found below.
 
+
 ```{r}
-btm <- BradleyTerry2::BTm(outcome = cbind(games$HomeScore, games$AwayScore),
-                          player1 = data.frame(team = games$HomeTeamName, at.home = 1),
-                          player2 = data.frame(team = games$AwayTeamName, at.home = 0),
-                          formula = ~team + at.home,
-                          id = 'team',
-                          data = games)
-summary(btm)
+logisticFunction <- function(homeFieldAdvantage, homeTeamStrength, awayTeamStrength){
+  return(1 / (1 + (exp(-(homeFieldAdvantage + homeTeamStrength - awayTeamStrength)))))
+}
+
+setup_games <- function(games){
+  g <- data.frame(HomeTeamName = games$HomeTeamName,
+                  AwayTeamName = games$AwayTeamName,
+                  HomeScore = games$HomeScore,
+                  AwayScore = games$AwayScore)
+  draws <- g %>% filter(AwayScore == HomeScore)
+  drawHomeWinReplacement <- data.frame(HomeTeamName = draws$HomeTeamName,
+                                       AwayTeamName = draws$AwayTeamName,
+                                       HomeScore = draws$HomeScore + 1,
+                                       AwayScore = draws$AwayScore)
+  drawAwayWinReplacement <- data.frame(HomeTeamName = draws$HomeTeamName,
+                                       AwayTeamName = draws$AwayTeamName,
+                                       HomeScore = draws$HomeScore,
+                                       AwayScore = draws$AwayScore + 1)
+  g <- g %>% filter(AwayScore != HomeScore)
+  g <- rbind(g, drawHomeWinReplacement, drawAwayWinReplacement)
+  
+  g <- g %>%
+    mutate(HomeMarginOfVictory = HomeScore - AwayScore,
+      GameResult = ifelse(HomeMarginOfVictory > 0, 1, 0))
+  return(g)
+}
+
+f <- function(p, teams, games){
+  t <- teams
+  x <- p
+  
+  teamStrengths <- x[1:(length(x)-1)]
+  names(teamStrengths) <- t
+  homeFieldAdvantage <- x[length(x)]
+  
+  g <- games %>%
+    mutate(HomeStrength = teamStrengths[HomeTeamName],
+      AwayStrength = teamStrengths[AwayTeamName],
+      LogisticVal = logisticFunction(homeFieldAdvantage, HomeStrength, AwayStrength),
+      Result = ifelse(GameResult == 1, LogisticVal, 1 - LogisticVal)
+    )
+  g$HomeTeamName = as.character(g$HomeTeamName)
+  g$AwayTeamName = as.character(g$AwayTeamName)
+  logLikelihood <- sum(log(g$Result))
+  return(-1 * logLikelihood)
+}
+
+g <- setup_games(games)
+teams <- sort(unique(games$HomeTeamName))
+p <- rep(1, times = length(teams) + 1)
+strengthOptimization <- nlm(f, p, teams = teams, games = g)
+strengths <- strengthOptimization$estimate
+names(strengths) <- c(teams, 'HomeFieldAdvantage')
+g$HomeStrength = strengths[g$HomeTeamName]
+g$AwayStrength = strengths[g$AwayTeamName]
+g$LogisticVal = logisticFunction(strengths['HomeFieldAdvantage'], g$HomeStrength, g$AwayStrength)
+g$LogisticResult = ifelse(g$GameResult == 1, g$LogisticVal, 1 - g$LogisticVal)
+m <- lm(formula = HomeMarginOfVictory ~ LogisticResult, data = g)
+coefLogisticResult <- m$coefficients['LogisticResult']
+coefIntercept <- m$coefficients['(Intercept)']
+g$PredictedSpread <- coefIntercept + (coefLogisticResult * g$LogisticResult)
+stdDev <- summary(m)$sigma
+g$HomeWinProb <- 1 - pnorm(0, mean = g$PredictedSpread, sd = stdDev)
+g$PredictedResult <- ifelse(g$HomeWinProb > 0.5, 1, 0)
+g$IsResultPredicted <- ifelse(g$GameResult == g$PredictedResult, 1, 0)
+g$PredictionError <- g$PredictedSpread - g$HomeMarginOfVictory
+g$ProbErrorSq <- (g$GameResult - g$HomeWinProb) ** 2
+g$LogError <- (g$GameResult * log(g$HomeWinProb)) + ((1-g$GameResult) * log(1 - g$HomeWinProb))
+
+benchmarks <- data.frame(RawAccuracy = mean(g$IsResultPredicted),
+                         RSQ = summary(m)$r.squared,
+                         RMSE = sqrt(mean(g$PredictionError ** 2)),
+                         MAE = mean(abs(g$PredictionError)),
+                         BrierScore = mean(g$ProbErrorSq),
+                         LogLoss = -1 * mean(g$LogError))
+
+homeFieldAdvantage <- strengths['HomeFieldAdvantage']
+testHomeStrength <- strengths['Barcelona']
+testAwayStrength <- strengths['Real Madrid']
+testLogisticResult <- logisticFunction(homeFieldAdvantage, testHomeStrength, testAwayStrength)
+testPredHomeSpread <- as.numeric(coefIntercept + (coefLogisticResult * testLogisticResult))
+testPredAwaySpread <- -1 * testPredHomeSpread
+testHomeWinPct <- 1 - pnorm(0.5, mean = testPredHomeSpread, sd = stdDev)
+testAwayWinPct <- 1 - pnorm(0.5, mean = testPredAwaySpread, sd = stdDev)
+testDrawPct <- 1 - (testHomeWinPct + testAwayWinPct)
+testHomeGoalsFavored <- 1
+testAwayGoalsFavored <- -1 * testHomeGoalsFavored
+testSpreadHomeWinPct <- 1 - pnorm(testHomeGoalsFavored + 0.5, mean = testPredHomeSpread, sd = stdDev)
+testSpreadAwayWinPct <- 1 - pnorm(testAwayGoalsFavored + 0.5, mean = testPredAwaySpread, sd = stdDev)
+testSpreadDrawPct <- 1 - (testSpreadHomeWinPct + testSpreadAwayWinPct)
 ```
 
 
