@@ -1,11 +1,11 @@
 source('requirements.r')
 source('src/data/get_api_football_json_from_url.R')
 
-get_roster_by_team <- function(teamId){
+get_roster_by_team <- function(teamId, allowCache = TRUE){
   url <- paste0('https://api-football-v1.p.rapidapi.com/v2/players/team/', teamId)
-  localPath <- paste0(getwd(), '/data/raw/roster_', str_pad(teamId, 6, pad = '0'), '.csv')
-  
-  if(file.exists(localPath)){
+  localPath <- paste0(getwd(), '/data/raw/rosters/roster_', str_pad(teamId, 6, pad = '0'), '.csv')
+
+  if(allowCache && file.exists(localPath)){
     roster <- read_csv(localPath)
     if(nrow(roster) == 0){
       roster <- NULL
@@ -61,19 +61,19 @@ get_roster_by_team <- function(teamId){
   return (roster)
 }
 
-get_all_rosters <- function(){
+get_all_rosters <- function(allowCache = TRUE){
   source('src/data/get_teams.R')
   teams <- get_all_teams()
   team <- teams[1,]
   teamId <- team$team_id
   # IF ROSTERS FOR FIRST TEAM IS NULL, THIS WILL NOT BE GOOD
-  rosters <- get_roster_by_team(teamId)
+  rosters <- get_roster_by_team(teamId, allowCache = allowCache)
   row.names(rosters) <- NULL
   for(i in seq(from = 2, to = nrow(teams), by = 1)){
     print(i)
     team <- teams[i,]
     teamId <- team$team_id
-    roster <- get_roster_by_team(teamId)
+    roster <- get_roster_by_team(teamId, allowCache = allowCache)
     #if(!is.null(roster)){
       #row.names(roster) <- NULL
       #rosters <- rbind(rosters, roster)

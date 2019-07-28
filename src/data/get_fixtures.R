@@ -1,11 +1,11 @@
 source('requirements.r')
 source('src/data/get_api_football_json_from_url.R')
 
-get_fixtures_by_league <- function(leagueId){
+get_fixtures_by_league <- function(leagueId, allowCache = TRUE){
   url <- paste0('https://api-football-v1.p.rapidapi.com/v2/fixtures/league/', leagueId)
   localPath <- paste0(getwd(), '/data/raw/leagueFixtures/fixtures_', str_pad(leagueId, 4, pad = '0'), '.csv')
-  
-  if(file.exists(localPath)){
+
+  if(allowCache && file.exists(localPath)){
     cols <- cols(
       FixtureId = col_double(),
       LeagueId = col_double(),
@@ -35,7 +35,7 @@ get_fixtures_by_league <- function(leagueId){
     fixtures <- read_csv(localPath, col_types = cols)
     return (fixtures)
   }
-  
+
   json <- get_api_football_json_from_url(url)
   fixtures <- json$fixtures
   fixtures$FixtureId <- fixtures$fixture_id
@@ -101,7 +101,7 @@ get_all_fixtures <- function(){
 get_detailed_fixture <- function(fixtureId){
   url <- paste0('https://api-football-v1.p.rapidapi.com/v2/fixtures/id/', fixtureId)
   localPath <- paste0(getwd(), '/data/raw/fixtureDetails_', str_pad(fixtureId, 7, pad = '0'), '.Rda')
-  
+
   if(file.exists(localPath)){
     print(localPath)
     fixture <- readRDS(localPath)
@@ -116,7 +116,7 @@ get_detailed_fixture <- function(fixtureId){
 }
 
 get_all_detailed_fixtures <- function(){
-  allFixtureSummaries <- get_all_fixtures() 
+  allFixtureSummaries <- get_all_fixtures()
   allFixtureSummaries <- allFixtureSummaries %>% arrange(desc(event_date), fixture_id)
   allFixtureSummaries <- allFixtureSummaries %>% filter(status %in% c('Match Finished', 'Match Abandoned', 'Match Suspended'))
   fixtureSummary <- allFixtureSummaries[1,]

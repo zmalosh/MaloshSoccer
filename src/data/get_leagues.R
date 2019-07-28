@@ -1,10 +1,10 @@
 source('requirements.r')
 source('src/data/get_api_football_json_from_url.R')
 
-get_leagues <- function(){
+get_leagues <- function(allowCache = TRUE){
   localPath <- 'data/raw/leagues.csv'
-  
-  if(file.exists(localPath)){
+
+  if(allowCache && file.exists(localPath)){
     cols <- cols(
       LeagueId = col_double(),
       LeagueName = col_character(),
@@ -21,11 +21,11 @@ get_leagues <- function(){
     leagues <- read_csv(localPath, col_types = cols)
     return (leagues)
   }
-  
+
   source('src/data/get_api_football_json_from_url.R')
-  
+
   url <- 'https://api-football-v1.p.rapidapi.com/v2/leagues'
-  
+
   json <- get_api_football_json_from_url(url)
   leagues <- json$leagues
   leagues <- leagues %>%
