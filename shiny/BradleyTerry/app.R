@@ -14,21 +14,19 @@ library(DT)
 ui <- fluidPage(
 
 	# Application title
-	titlePanel("Old Faithful Geyser Data"),
+	titlePanel("Soccer Predictions"),
 
 	# Sidebar with a slider input for number of bins
 	sidebarLayout(
 		sidebarPanel(
 			uiOutput('Season'),
-			textOutput('SelectedSeason'),
-			uiOutput('LeagueId'),
-			textOutput('SelectedLeagueId'),
-			uiOutput('HomeTeamId')
+			uiOutput('LeagueId')
 		),
 
 		# Show a plot of the generated distribution
 		mainPanel(
 			tabsetPanel(
+				tabPanel('Upcoming Games', textOutput('PENDING')),
 				tabPanel('Teams', DT::dataTableOutput('TeamStrengths')),
 				tabPanel('Final Games', DT::dataTableOutput('FinalGamesTable'))
 			)
@@ -88,42 +86,27 @@ server <- function(input, output, session) {
 	})
 
 	tableLogoHeight <- 20
-	finalGames <- reactive({
+	btModel <- reactive({
 		games <- games()
 		if(is.null(games) || nrow(games) == 0){
-			finalGames <- NULL
+			btModel <- NULL
 		} else {
-			finalGames <- games %>% transform(Status = StatusShort) %>%
-				mutate(Score = paste0(HomeScore, '-', AwayScore),
-					   HomeTeam = paste0('<img src="',HomeTeamLogo,'" height="',tableLogoHeight,'"></img> ',HomeTeamName),
-					   AwayTeam = paste0('<img src="',AwayTeamLogo,'" height="',tableLogoHeight,'"></img> ',AwayTeamName)) %>%
-				filter(StatusShort == 'FT') %>%
-				select(GameDate, HomeTeam, Score, AwayTeam, Venue, Referee)
-		}
-	})
-	output$FinalGamesTable <- DT::renderDataTable({DT::datatable(finalGames(), escape = FALSE)})
-
-	leagueTeams <- reactive({
-		games <- games()
-		if(is.null(games) || nrow(games) == 0){
-			finalGames <- NULL
-		} else {
-			leagueId <- input$LeagueId
-			leagueTeams <- get_teams_by_league(leagueId)
+			btModel <- get_bradley_terry_model(gameIds = games$FixtureId,
+											   homeTeamIds = as.character(games$HomeTeamId),
+											   awayTeamIds = as.character(games$AwayTeamId),
+											   homeScore = games$HomeScore,
+											   awayScore = games$AwayScore)
 		}
 	})
 
 	teamStrengths <- reactive({
 		games <- games()
 		teams <- leagueTeams()
-		if(is.null(games) || nrow(games) == 0 || is.null(teams) || nrow(teams) == 0){
+		btModel <- btModel()
+		if(is.null(games) || nrow(games) == 0 || is.null(teams) || nrow(teams) == 0 | is.null(btModel)){
 			teamStrengths <- NULL
 		} else {
-			rawTeamStrengths <- get_team_strengths(games$FixtureId,
-												as.character(games$HomeTeamId),
-												as.character(games$AwayTeamId),
-												games$HomeScore,
-												games$AwayScore)
+			rawTeamStrengths <- btModel[['teamStrengths']]
 			teamStandings <- rbind(
 				games %>%
 					filter(!is.na(HomeScore) & !is.na(AwayScore)) %>%
@@ -183,29 +166,37 @@ server <- function(input, output, session) {
 	})
 	output$TeamStrengths <- DT::renderDataTable({DT::datatable(teamStrengthsTable(), escape = FALSE)})
 
-	teamOptions <- reactive({
+	finalGames <- reactive({
 		games <- games()
-		if(g == null){
-			teams <- NULL
+		btModel <- btModel()
+		if(is.null(games) || nrow(games) == 0){
+			finalGames <- NULL
 		} else {
-			homeTeams <- data.frame(TeamName = games$HomeTeamName,
-									TeamId = games$HomeTeamId)
-			awayTeams <- data.frame(TeamName = games$AwayTeamName,
-									TeamId = games$AwayTeamId)
-			teams <- rbind(homeTeams, awayTeams) %>% unique() %>% arrange(TeamName)
-			teamOptions <- as.list(teams$TeamId)
-			setNames(teamOptions, teams$TeamName)
+			gamePredictions <- mapply(btModel$predictGame, homeTeamId = games$HomeTeamId, awayTeamId = games$AwayTeamId)
+			games$HomeProb <- round(unlist(gamePredictions['HomeWinPct',]), digits = 4)
+			games$DrawProb <- round(unlist(gamePredictions['DrawWinPct',]), digits = 4)
+			games$AwayProb <- round(unlist(gamePredictions['AwayWinPct',]), digits = 4)
+			finalGames <- games %>% transform(Status = StatusShort) %>%
+				mutate(Score = paste0(HomeScore, '-', AwayScore),
+					   HomeTeam = paste0('<img src="',HomeTeamLogo,'" height="',tableLogoHeight,'"></img> ',HomeTeamName),
+					   AwayTeam = paste0('<img src="',AwayTeamLogo,'" height="',tableLogoHeight,'"></img> ',AwayTeamName)) %>%
+				filter(StatusShort == 'FT') %>%
+				select(GameDate, HomeTeam, Score, AwayTeam, HomeProb, DrawProb, AwayProb, Venue, Referee)
+		}
+	})
+	output$FinalGamesTable <- DT::renderDataTable({DT::datatable(finalGames(), escape = FALSE)})
+
+	leagueTeams <- reactive({
+		games <- games()
+		if(is.null(games) || nrow(games) == 0){
+			finalGames <- NULL
+		} else {
+			leagueId <- input$LeagueId
+			leagueTeams <- get_teams_by_league(leagueId)
 		}
 	})
 
-	output$HomeTeam <- renderUI({
-		if(is.null(input$Season) || input$Season == notSelectedVal || is.null(input$LeagueId) || input$LeagueId == notSelectedVal){
-			return (NULL)
-		}
-		selectInput('HomeTeamId',
-					'Home Team',
-					choices = teamOptions())
-	})
+
 }
 
 # Run the application
