@@ -1,4 +1,4 @@
-source('requirements.r')
+source('requirements.R')
 source('src/data/get_api_football_json_from_url.R')
 
 get_roster_by_team <- function(teamId, allowCache = TRUE){
