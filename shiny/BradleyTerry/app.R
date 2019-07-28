@@ -11,6 +11,10 @@ library(shiny)
 library(DT)
 library(shinyjs)
 
+get_files_for_deploy <- function(){
+
+}
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 	shinyjs::useShinyjs(),
@@ -65,13 +69,15 @@ server <- function(input, output, session) {
 		setwd('../..')
 	}
 
+	useDataCache <- TRUE
+
 	source('requirements.R')
 	source('src/data/get_leagues.R')
 	source('src/data/get_fixtures.R')
 	source('src/data/get_teams.R')
 	source('src/models/bradleyTerry.R')
 	notSelectedVal <- -1
-	leagues <- get_leagues()
+	leagues <- get_leagues(allowCache = useDataCache)
 	seasonOptions <- as.list(c(notSelectedVal, sort(unique(leagues$Season), decreasing = TRUE)))
 	setNames(seasonOptions, c('NONE', sort(unique(leagues$Season), decreasing = TRUE)))
 	output$Season <- renderUI({
@@ -106,7 +112,7 @@ server <- function(input, output, session) {
 			games <- NULL
 		} else {
 			leagueId <- input$LeagueId
-			games <- get_fixtures_by_league(leagueId)
+			games <- get_fixtures_by_league(leagueId, allowCache = useDataCache)
 		}
 	})
 
@@ -116,7 +122,7 @@ server <- function(input, output, session) {
 			leagueTeams <- NULL
 		} else {
 			leagueId <- input$LeagueId
-			leagueTeams <- get_teams_by_league(leagueId)
+			leagueTeams <- get_teams_by_league(leagueId, allowCache = useDataCache)
 		}
 	})
 
