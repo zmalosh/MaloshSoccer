@@ -64,9 +64,9 @@ get_bradley_terry_model <- function(gameIds, homeTeamIds, awayTeamIds, homeScore
 	}
 
 	g <- setup_games(gameIds, homeTeamIds, awayTeamIds, homeScores, awayScores)
-	teamStrengths <- get_team_strengths(g)
-	homeFieldAdvantage <- teamStrengths['HomeFieldAdvantage']
-	teamStrengths <- teamStrengths[names(teamStrengths) != 'HomeFieldAdvantage']
+	strengths <- get_team_strengths(g)
+	homeFieldAdvantage <- strengths['HomeFieldAdvantage']
+	teamStrengths <- strengths[names(strengths) != 'HomeFieldAdvantage']
 	g <- g %>%
 		mutate(HomeStrength = teamStrengths[as.character(HomeTeamId)],
 			   AwayStrength = teamStrengths[as.character(AwayTeamId)],
@@ -94,16 +94,20 @@ get_bradley_terry_model <- function(gameIds, homeTeamIds, awayTeamIds, homeScore
 							 BrierScore = mean(g$ProbErrorSq),
 							 LogLoss = -1 * mean(g$LogError))
 
-	predict <- function(homeTeamId, awayTeamId, homeSpread = 0){
-		homeGoalsFavored <- -1 * homeSpread
-		awayGoalsFavored <- -1 * homeGoalsFavored
+	predictByIds <- function(homeTeamId, awayTeamId, homeSpread = 0){
 		homeStrength <- teamStrengths[as.character(homeTeamId)]
 		awayStrength <- teamStrengths[as.character(awayTeamId)]
+		homeFieldAdvantage <- strengths['HomeFieldAdvantage']
+		return(predict(homeStrength, awayStrength, homeFieldAdvantage, homeSpread))
+	}
+	predict <- function(homeStrength, awayStrength, homeFieldAdvantage, homeSpread = 0){
+		homeGoalsFavored <- -1 * homeSpread
+		awayGoalsFavored <- -1 * homeGoalsFavored
 		logisticResult <- logisticFunction(homeFieldAdvantage, homeStrength, awayStrength)
 		predictedHomeSpread <- as.numeric(coefIntercept + (coefLogisticResult * logisticResult))
 		predictedAwaySpread <- -1 * predictedHomeSpread
-		homeWinPct <- 1 - pnorm(homeGoalsFavored + 0.5, mean = predictedHomeSpread, sd = stdDev)
-		awayWinPct <- 1 - pnorm(awayGoalsFavored + 0.5, mean = predictedAwaySpread, sd = stdDev)
+		homeWinPct <- 1 - pnorm(homeGoalsFavored + ifelse(homeGoalsFavored%%1==0, 0.5, 0), mean = predictedHomeSpread, sd = stdDev)
+		awayWinPct <- 1 - pnorm(awayGoalsFavored + ifelse(awayGoalsFavored%%1==0, 0.5, 0), mean = predictedAwaySpread, sd = stdDev)
 		drawWinPct <- 1 - (homeWinPct + awayWinPct)
 		result <- list(HomeTeamId = homeTeamId,
 					   AwayTeamId = awayTeamId,
@@ -120,6 +124,7 @@ get_bradley_terry_model <- function(gameIds, homeTeamIds, awayTeamIds, homeScore
 				   'coefIntercept' = coefIntercept,
 				   'logisticFunction' = logisticFunction,
 				   'model' = m,
+				   'predictGameByIds' = predictByIds,
 				   'predictGame' = predict,
 				   'benchmarks' = benchmarks)
 

@@ -9,9 +9,11 @@
 
 library(shiny)
 library(DT)
+library(shinyjs)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+	shinyjs::useShinyjs(),
 
 	# Application title
 	titlePanel("Soccer Predictions"),
@@ -26,9 +28,32 @@ ui <- fluidPage(
 		# Show a plot of the generated distribution
 		mainPanel(
 			tabsetPanel(
+				tabPanel('Predict Game',
+						 fluidRow(
+						 	column(3,
+						 		   uiOutput('PredictGameHomeTeamId')),
+						 	column(3,
+						 		   uiOutput('PredictGameAwayTeamId')),
+						 	column(3,
+						 		   uiOutput('PredictGameHomeSpread')),
+						 	column(3,
+						 		   uiOutput('PredictGameAllowAdjustments'))
+						 ),
+						 fluidRow(
+						 	column(3,
+						 		   uiOutput('PredictGameHomeStrength')),
+						 	column(3,
+						 		   uiOutput('PredictGameAwayStrength')),
+						 	column(3,
+						 		   uiOutput('PredictGameHomeFieldStrength'))
+						 ),
+						 DT::dataTableOutput('PredictGameResultsTable')
+				),
 				tabPanel('Upcoming Games', textOutput('PENDING')),
-				tabPanel('Teams', DT::dataTableOutput('TeamStrengths')),
-				tabPanel('Final Games', DT::dataTableOutput('FinalGamesTable'))
+				tabPanel('Teams',
+						 uiOutput('HomeFieldAdvantage'),
+						 DT::dataTableOutput('TeamStrengths')),
+				tabPanel('Completed Games', DT::dataTableOutput('FinalGamesTable'))
 			)
 		)
 	)
@@ -75,13 +100,23 @@ server <- function(input, output, session) {
 					'Leagues',
 					choices = leagueOptions())
 	})
-	output$SelectedLeagueId <- renderText(input$LeagueId)
 
 	games <- reactive({
 		if(is.null(input$Season) || input$Season == notSelectedVal || is.null(input$LeagueId) || input$LeagueId == notSelectedVal){
 			games <- NULL
 		} else {
-			games <- get_fixtures_by_league(input$LeagueId)
+			leagueId <- input$LeagueId
+			games <- get_fixtures_by_league(leagueId)
+		}
+	})
+
+	leagueTeams <- reactive({
+		games <- games()
+		if(is.null(games) || nrow(games) == 0){
+			leagueTeams <- NULL
+		} else {
+			leagueId <- input$LeagueId
+			leagueTeams <- get_teams_by_league(leagueId)
 		}
 	})
 
@@ -165,6 +200,9 @@ server <- function(input, output, session) {
 		}
 	})
 	output$TeamStrengths <- DT::renderDataTable({DT::datatable(teamStrengthsTable(), escape = FALSE)})
+	output$HomeFieldAdvantage <- renderUI({
+		h3(paste('Home Field Advantage:', btModel()$homeFieldStrength))
+	})
 
 	finalGames <- reactive({
 		games <- games()
@@ -172,7 +210,7 @@ server <- function(input, output, session) {
 		if(is.null(games) || nrow(games) == 0){
 			finalGames <- NULL
 		} else {
-			gamePredictions <- mapply(btModel$predictGame, homeTeamId = games$HomeTeamId, awayTeamId = games$AwayTeamId)
+			gamePredictions <- mapply(btModel$predictGameByIds, homeTeamId = games$HomeTeamId, awayTeamId = games$AwayTeamId)
 			games$HomeProb <- round(unlist(gamePredictions['HomeWinPct',]), digits = 4)
 			games$DrawProb <- round(unlist(gamePredictions['DrawWinPct',]), digits = 4)
 			games$AwayProb <- round(unlist(gamePredictions['AwayWinPct',]), digits = 4)
@@ -186,17 +224,181 @@ server <- function(input, output, session) {
 	})
 	output$FinalGamesTable <- DT::renderDataTable({DT::datatable(finalGames(), escape = FALSE)})
 
-	leagueTeams <- reactive({
-		games <- games()
-		if(is.null(games) || nrow(games) == 0){
-			finalGames <- NULL
+	# PREDICT GAME TAB
+	teamOptions <- reactive({
+		teams <- leagueTeams()
+		if(is.null(teams) || nrow(teams) == 0){
+			teamOptions <- NULL
 		} else {
-			leagueId <- input$LeagueId
-			leagueTeams <- get_teams_by_league(leagueId)
+			allTeamOptions <- teams %>%
+				select(TeamId, TeamName) %>%
+				unique() %>%
+				arrange(TeamName)
+			teamOptions <- as.list(allTeamOptions$TeamId)
+			setNames(teamOptions, allTeamOptions$TeamName)
 		}
 	})
 
+	output$PredictGameHomeTeamId <- renderUI({
+		t <- teamOptions()
+		if(is.null(t) || length(t) == 0){
+			return(NULL)
+		}
+		selectInput('PredictGameHomeTeamId',
+					'Home Team',
+					choices = t)
+	})
 
+	output$PredictGameAwayTeamId <- renderUI({
+		t <- teamOptions()
+		if(is.null(t) || length(t) == 0){
+			return(NULL)
+		}
+		selectInput('PredictGameAwayTeamId',
+					'Away Team',
+					choices = t)
+	})
+
+	output$PredictGameHomeSpread <- renderUI({
+		t <- teamOptions()
+		if(is.null(t) || length(t) == 0){
+			return(NULL)
+		}
+		sliderInput('PredictGameHomeSpread',
+					'Home Spread',
+					min = -5,
+					max = 5,
+					value = 0,
+					step = 0.5,
+					ticks = TRUE)
+	})
+
+	output$PredictGameAllowAdjustments <- renderUI({
+		t <- teamOptions()
+		if(is.null(t) || length(t) == 0){
+			return(NULL)
+		}
+		checkboxInput('PredictGameAllowAdjustments',
+					  'Allow Adjustments',
+					  value = FALSE)
+	})
+
+	output$PredictGameHomeStrength <- renderUI({
+		t <- teamOptions()
+		teamStrengths <- teamStrengths()
+		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+			return(NULL)
+		}
+
+		sliderInput('PredictGameHomeStrength',
+					'Home Strength',
+					min = round(min(teamStrengths$Strength) - 1, digits = 2),
+					max = round(max(teamStrengths$Strength) + 1, digits = 2),
+					value = (teamStrengths %>% filter(TeamId == input$PredictGameHomeTeamId))$Strength,
+					ticks = TRUE)
+	})
+
+	output$PredictGameAwayStrength <- renderUI({
+		t <- teamOptions()
+		teamStrengths <- teamStrengths()
+		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+			return(NULL)
+		}
+
+		sliderInput('PredictGameAwayStrength',
+					'Away Strength',
+					min = round(min(teamStrengths$Strength) - 1, digits = 2),
+					max = round(max(teamStrengths$Strength) + 1, digits = 2),
+					value = (teamStrengths %>% filter(TeamId == input$PredictGameAwayTeamId))$Strength,
+					ticks = TRUE)
+	})
+
+	output$PredictGameHomeFieldStrength <- renderUI({
+		t <- teamOptions()
+		btModel <- btModel()
+		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+			return(NULL)
+		}
+		sliderInput('PredictGameHomeFieldStrength',
+					'Home Field Advantage',
+					min = round(min(btModel$teamStrengths) - 1, digits = 2),
+					max = round(max(btModel$teamStrengths) + 1, digits = 2),
+					value = btModel$homeFieldStrength,
+					ticks = TRUE)
+	})
+
+	observeEvent(input$PredictGameAllowAdjustments, {
+		if(input$PredictGameAllowAdjustments == T){
+			shinyjs::showElement('PredictGameHomeStrength')
+			shinyjs::showElement('PredictGameAwayStrength')
+			shinyjs::showElement('PredictGameHomeFieldStrength')
+		} else {
+			shinyjs::hideElement('PredictGameHomeStrength')
+			shinyjs::hideElement('PredictGameAwayStrength')
+			shinyjs::hideElement('PredictGameHomeFieldStrength')
+		}
+	})
+
+	predictGameSettings <- reactive({
+		btModel <- btModel()
+		teams <- leagueTeams()
+		if(is.null(btModel) ||
+		   is.null(input$PredictGameHomeStrength) ||
+		   is.null(input$PredictGameAwayStrength) ||
+		   is.null(input$PredictGameHomeSpread)||
+		   is.null(input$PredictGameHomeFieldStrength) ||
+		   is.null(input$PredictGameAllowAdjustments)){
+			predictGameSettings <- NULL
+		} else if(!input$PredictGameAllowAdjustments){
+			homeTeamId <- input$PredictGameHomeTeamId
+			homeStrength <- btModel$teamStrengths[as.character(homeTeamId)]
+			awayTeamId <- input$PredictGameAwayTeamId
+			awayStrength <- btModel$teamStrengths[as.character(awayTeamId)]
+			homeFieldStrength <- btModel$homeFieldStrength
+			predictGameSettings <- list(
+				HomeStrength = as.numeric(homeStrength),
+				AwayStrength = as.numeric(awayStrength),
+				HomeFieldStrength = as.numeric(homeFieldStrength),
+				HomeSpread = as.numeric(input$PredictGameHomeSpread)
+			)
+		} else {
+			predictGameSettings <- list(
+				HomeStrength = as.numeric(input$PredictGameHomeStrength),
+				AwayStrength = as.numeric(input$PredictGameAwayStrength),
+				HomeFieldStrength = as.numeric(input$PredictGameHomeFieldStrength),
+				HomeSpread = as.numeric(input$PredictGameHomeSpread)
+			)
+		}
+	})
+
+	predictGameResults <- reactive({
+		predictGameSettings <- predictGameSettings()
+		teams <- leagueTeams()
+		btModel <- btModel()
+		if(is.null(predictGameSettings) || is.null(teams) || nrow(teams) == 0 || is.null(btModel)){
+			predictGameResults <- NULL
+		} else {
+			p <- data.frame(HomeSpread = as.numeric(predictGameSettings$HomeSpread),
+							HomeStrength = as.numeric(predictGameSettings$HomeStrength),
+							AwayStrength = as.numeric(predictGameSettings$AwayStrength),
+							HomeFieldStrength = as.numeric(predictGameSettings$HomeFieldStrength))
+
+			x <- mapply(
+				FUN = btModel$predictGame,
+				homeStrength = p$HomeStrength,
+				awayStrength = p$AwayStrength,
+				homeFieldAdvantage = p$HomeFieldStrength,
+				homeSpread = p$HomeSpread)
+			p$HomeProb <- round(unlist(x['HomeWinPct',]), digits = 4)
+			p$DrawProb <- round(unlist(x['DrawWinPct',]), digits = 4)
+			p$AwayProb <- round(unlist(x['AwayWinPct',]), digits = 4)
+
+			predictGameResults <- p %>%
+				select(HomeSpread, HomeProb, DrawProb, AwayProb)
+		}
+	})
+
+	output$PredictGameResultsTable <- DT::renderDataTable({DT::datatable(predictGameResults(), escape = FALSE)})
 }
 
 # Run the application
