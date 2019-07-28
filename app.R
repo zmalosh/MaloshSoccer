@@ -11,10 +11,6 @@ library(shiny)
 library(DT)
 library(shinyjs)
 
-get_files_for_deploy <- function(){
-
-}
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 	shinyjs::useShinyjs(),
@@ -65,10 +61,6 @@ ui <- fluidPage(
 
 	# Define server logic required to draw a histogram
 server <- function(input, output, session) {
-	if(toupper(basename(getwd())) == 'BRADLEYTERRY'){
-		setwd('../..')
-	}
-
 	useDataCache <- TRUE
 
 	source('requirements.R')
