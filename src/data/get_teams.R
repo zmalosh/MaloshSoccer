@@ -4,23 +4,28 @@ source('src/data/get_api_football_json_from_url.R')
 get_teams_by_league <- function(leagueId, allowCache = TRUE){
 	localPath <- paste0(getwd(), '/data/raw/teams/teams_', str_pad(leagueId, 4, pad = '0'), '.csv')
 
-	if(allowCache && file.exists(localPath)){
-		cols <- cols(
-			TeamId = col_double(),
-			TeamName = col_character(),
-			TeamCode = col_character(),
-			Country = col_character(),
-			LogoUrl = col_character(),
-			FoundedYear = col_double(),
-			VenueName = col_character(),
-			VenueSurface = col_character(),
-			VenueAddress = col_character(),
-			VenueCity = col_character(),
-			VenueCapacity = col_double(),
-			LeagueId = col_double()
-		)
-		teams <- read_csv(localPath, col_types = cols)
-		return (teams)
+	if(allowCache){
+		if(!dir.exists(dirname(localPath))){
+			dir.create(dirname(localPath))
+		}
+		if(file.exists(localPath)){
+			cols <- cols(
+				TeamId = col_double(),
+				TeamName = col_character(),
+				TeamCode = col_character(),
+				Country = col_character(),
+				LogoUrl = col_character(),
+				FoundedYear = col_double(),
+				VenueName = col_character(),
+				VenueSurface = col_character(),
+				VenueAddress = col_character(),
+				VenueCity = col_character(),
+				VenueCapacity = col_double(),
+				LeagueId = col_double()
+			)
+			teams <- read_csv(localPath, col_types = cols)
+			return (teams)
+		}
 	}
 
 	inputLeagueId <- leagueId
@@ -45,7 +50,9 @@ get_teams_by_league <- function(leagueId, allowCache = TRUE){
 			   LogoUrl, FoundedYear, VenueName,
 			   VenueSurface, VenueAddress, VenueCity,
 			   VenueCapacity, LeagueId)
-	write_csv(teams, localPath)
+	if(allowCache){
+		write_csv(teams, localPath)
+	}
 	return (teams)
 }
 
