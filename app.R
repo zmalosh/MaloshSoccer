@@ -70,9 +70,13 @@ server <- function(input, output, session) {
 	source('src/data/get_teams.R')
 	source('src/models/bradleyTerry.R')
 	notSelectedVal <- -1
+	currentSeasonVal <- -2
 	leagues <- get_leagues(allowCache = useDataCache)
-	seasonOptions <- as.list(c(notSelectedVal, sort(unique(leagues$Season), decreasing = TRUE)))
-	setNames(seasonOptions, c('NONE', sort(unique(leagues$Season), decreasing = TRUE)))
+	seasonOptions <- as.list(c(currentSeasonVal, sort(unique(leagues$Season), decreasing = TRUE)))
+	seasonNames <- c('CURRENT', sort(unique(as.character(leagues$Season)), decreasing = TRUE))
+	print(seasonNames)
+	names(seasonOptions) <- seasonNames
+	print(seasonOptions)
 	output$Season <- renderUI({
 		selectInput('Season',
 					'Season',
@@ -85,7 +89,11 @@ server <- function(input, output, session) {
 		if(input$Season == notSelectedVal){
 			leagueOptions <- list('SELECT LEAGUE...' = notSelectedVal)
 		} else {
-			seasonLeagues <- leagues %>% filter(Season == input$Season) %>% arrange(Country, LeagueName)
+			if (input$Season == currentSeasonVal){
+				seasonLeagues <- leagues %>% filter(IsCurrentSeason & SeasonStartDate < as.Date(Sys.time()) ) %>% arrange(Country, LeagueName)
+			} else{
+				seasonLeagues <- leagues %>% filter(Season == input$Season) %>% arrange(Country, LeagueName)
+			}
 			leagueOptions <- c(notSelectedVal, as.list(seasonLeagues$LeagueId))
 			leagueNames <- c('NONE', paste0(seasonLeagues$Country, ' - ', seasonLeagues$LeagueName))
 			setNames(leagueOptions, leagueNames)
