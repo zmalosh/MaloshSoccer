@@ -254,7 +254,7 @@ server <- function(input, output, session) {
 
 	output$PredictGameHomeTeamId <- renderUI({
 		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || length(teamOptions) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0){
 			return(NULL)
 		}
 		teamChoices <- as.list(teamOptions$TeamId)
@@ -267,7 +267,7 @@ server <- function(input, output, session) {
 
 	output$PredictGameAwayTeamId <- renderUI({
 		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || length(teamOptions) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0){
 			return(NULL)
 		}
 		teamChoices <- as.list(teamOptions$TeamId)
@@ -280,7 +280,7 @@ server <- function(input, output, session) {
 
 	output$PredictGameHomeSpread <- renderUI({
 		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || length(teamOptions) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0){
 			return(NULL)
 		}
 		sliderInput('PredictGameHomeSpread',
@@ -294,7 +294,7 @@ server <- function(input, output, session) {
 
 	output$PredictGameAllowAdjustments <- renderUI({
 		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || length(teamOptions) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0){
 			return(NULL)
 		}
 		checkboxInput('PredictGameAllowAdjustments',
@@ -305,7 +305,7 @@ server <- function(input, output, session) {
 	output$PredictGameHomeStrength <- renderUI({
 		teamOptions <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -320,7 +320,7 @@ server <- function(input, output, session) {
 	output$PredictGameAwayStrength <- renderUI({
 		teamOptions <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -335,7 +335,7 @@ server <- function(input, output, session) {
 	output$PredictGameHomeFieldStrength <- renderUI({
 		teamOptions <- teamOptions()
 		btModel <- btModel()
-		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 		sliderInput('PredictGameHomeFieldStrength',
