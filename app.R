@@ -76,8 +76,8 @@ server <- function(input, output, session) {
 	currentSeasonVal <- -2
 
 	leagues <- get_leagues(allowCache = useDataCache)
-	seasonOptions <- as.list(c(currentSeasonVal, sort(unique(leagues$Season), decreasing = TRUE)))
-	seasonNames <- c('CURRENT', sort(unique(as.character(leagues$Season)), decreasing = TRUE))
+	seasonOptions <- as.list(c(notSelectedVal, currentSeasonVal, sort(unique(leagues$Season), decreasing = TRUE)))
+	seasonNames <- c('NONE', 'CURRENT', sort(unique(as.character(leagues$Season)), decreasing = TRUE))
 	names(seasonOptions) <- seasonNames
 	output$Season <- renderUI({
 		selectInput('Season',
@@ -85,7 +85,6 @@ server <- function(input, output, session) {
 					choices = seasonOptions,
 					selected = notSelectedVal)
 	})
-	output$SelectedSeason <- renderText(input$Season)
 
 	leagueOptions <- reactive({
 		if(input$Season == notSelectedVal){
@@ -110,8 +109,16 @@ server <- function(input, output, session) {
 					choices = leagueOptions())
 	})
 
+	leagueId <- reactive({
+		if(is.null(input$LeagueId)){
+			return (NULL)
+		}
+		leagueId <- input$LeagueId
+	})
+
 	games <- reactive({
-		if(is.null(input$Season) || input$Season == notSelectedVal || is.null(input$LeagueId) || input$LeagueId == notSelectedVal){
+		leagueId <- leagueId()
+		if(is.null(input$Season) || input$Season == notSelectedVal || is.null(leagueId) || leagueId == notSelectedVal){
 			games <- NULL
 		} else {
 			leagueId <- input$LeagueId
@@ -144,52 +151,58 @@ server <- function(input, output, session) {
 
 	teamStrengths <- reactive({
 		games <- games()
-		teams <- leagueTeams()
-		btModel <- btModel()
-		if(is.null(games) || nrow(games) == 0 || is.null(teams) || nrow(teams) == 0 | is.null(btModel)){
-			teamStrengths <- NULL
-		} else {
-			rawTeamStrengths <- btModel[['teamStrengths']]
-			teamStandings <- rbind(
-				games %>%
-					filter(!is.na(HomeScore) & !is.na(AwayScore)) %>%
-					transform(TeamId = HomeTeamId, Score = HomeScore, OppScore = AwayScore, IsHome = TRUE) %>%
-					select(TeamId, Score, OppScore, IsHome),
-				games %>%
-					filter(!is.na(HomeScore) & !is.na(AwayScore)) %>%
-					transform(TeamId = AwayTeamId, Score = AwayScore, OppScore = HomeScore, IsHome = FALSE) %>%
-					select(TeamId, Score, OppScore, IsHome)) %>%
-				group_by(TeamId, IsHome) %>%
-				summarise(GoalsFor = sum(Score),
-						  GoalsAgainst = sum(OppScore),
-						  Wins = sum(ifelse(Score > OppScore, 1, 0)),
-						  Draws = sum(ifelse(Score == OppScore, 1, 0)),
-						  Losses = sum(ifelse(Score < OppScore, 1, 0))) %>%
-				group_by(TeamId) %>%
-				summarise(Wins = sum(Wins),
-						  Draws = sum(Draws),
-						  Losses = sum(Losses),
-						  GoalsFor = sum(GoalsFor),
-						  GoalsAgainst = sum(GoalsAgainst),
-						  HomeWins = sum(ifelse(IsHome, Wins, 0)),
-						  HomeDraws = sum(ifelse(IsHome, Draws, 0)),
-						  HomeLosses = sum(ifelse(IsHome, Losses, 0)),
-						  HomeGoalsFor = sum(ifelse(IsHome, GoalsFor, 0)),
-						  HomeGoalsAgainst = sum(ifelse(IsHome, GoalsAgainst, 0)),
-						  AwayWins = sum(ifelse(!IsHome, Wins, 0)),
-						  AwayDraws = sum(ifelse(!IsHome, Draws, 0)),
-						  AwayLosses = sum(ifelse(!IsHome, Losses, 0)),
-						  AwayGoalsFor = sum(ifelse(!IsHome, GoalsFor, 0)),
-						  AwayGoalsAgainst = sum(ifelse(!IsHome, GoalsAgainst, 0)))
-
-			teamStrengths <- teams %>%
-				mutate(Strength = rawTeamStrengths[as.character(TeamId)]) %>%
-				inner_join(teamStandings, by = 'TeamId') %>%
-				select(TeamId, TeamName, Country, LogoUrl, Strength,
-					   Wins, Draws, Losses, GoalsFor, GoalsAgainst,
-					   HomeWins, HomeDraws, HomeLosses, HomeGoalsFor, HomeGoalsAgainst,
-					   AwayWins, AwayDraws, AwayLosses, AwayGoalsFor, AwayGoalsAgainst)
+		if(is.null(games) || nrow(games) == 0){
+			return(NULL)
 		}
+		teams <- leagueTeams()
+		if(is.null(teams) || nrow(teams) == 0){
+			return(NULL)
+		}
+		btModel <- btModel()
+		if(is.null(btModel)){
+			return(NULL)
+		}
+
+		rawTeamStrengths <- btModel[['teamStrengths']]
+		teamStandings <- rbind(
+			games %>%
+				filter(!is.na(HomeScore) & !is.na(AwayScore)) %>%
+				transform(TeamId = HomeTeamId, Score = HomeScore, OppScore = AwayScore, IsHome = TRUE) %>%
+				select(TeamId, Score, OppScore, IsHome),
+			games %>%
+				filter(!is.na(HomeScore) & !is.na(AwayScore)) %>%
+				transform(TeamId = AwayTeamId, Score = AwayScore, OppScore = HomeScore, IsHome = FALSE) %>%
+				select(TeamId, Score, OppScore, IsHome)) %>%
+			group_by(TeamId, IsHome) %>%
+			summarise(GoalsFor = sum(Score),
+					  GoalsAgainst = sum(OppScore),
+					  Wins = sum(ifelse(Score > OppScore, 1, 0)),
+					  Draws = sum(ifelse(Score == OppScore, 1, 0)),
+					  Losses = sum(ifelse(Score < OppScore, 1, 0))) %>%
+			group_by(TeamId) %>%
+			summarise(Wins = sum(Wins),
+					  Draws = sum(Draws),
+					  Losses = sum(Losses),
+					  GoalsFor = sum(GoalsFor),
+					  GoalsAgainst = sum(GoalsAgainst),
+					  HomeWins = sum(ifelse(IsHome, Wins, 0)),
+					  HomeDraws = sum(ifelse(IsHome, Draws, 0)),
+					  HomeLosses = sum(ifelse(IsHome, Losses, 0)),
+					  HomeGoalsFor = sum(ifelse(IsHome, GoalsFor, 0)),
+					  HomeGoalsAgainst = sum(ifelse(IsHome, GoalsAgainst, 0)),
+					  AwayWins = sum(ifelse(!IsHome, Wins, 0)),
+					  AwayDraws = sum(ifelse(!IsHome, Draws, 0)),
+					  AwayLosses = sum(ifelse(!IsHome, Losses, 0)),
+					  AwayGoalsFor = sum(ifelse(!IsHome, GoalsFor, 0)),
+					  AwayGoalsAgainst = sum(ifelse(!IsHome, GoalsAgainst, 0)))
+
+		teamStrengths <- teams %>%
+			mutate(Strength = rawTeamStrengths[as.character(TeamId)]) %>%
+			inner_join(teamStandings, by = 'TeamId') %>%
+			select(TeamId, TeamName, Country, LogoUrl, Strength,
+				   Wins, Draws, Losses, GoalsFor, GoalsAgainst,
+				   HomeWins, HomeDraws, HomeLosses, HomeGoalsFor, HomeGoalsAgainst,
+				   AwayWins, AwayDraws, AwayLosses, AwayGoalsFor, AwayGoalsAgainst)
 	})
 	teamStrengthsTable <- reactive({
 		teamStrengths <- teamStrengths()
@@ -241,7 +254,7 @@ server <- function(input, output, session) {
 			teamOptions <- NULL
 		} else {
 			allTeamOptions <- teams %>%
-				transform(SelectDisplay = sprintf('<div><img src="%s" height="%s"></img>&nbsp;&nbsp;<span>%s</span></div>',
+				transform(SelectDisplay = sprintf('<div><img src="%s" height="%s"></img>  <span>%s</span></div>',
 												  LogoUrl,
 												  tableLogoHeight,
 												  TeamName)) %>%
@@ -253,34 +266,34 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeTeamId <- renderUI({
-		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0){
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
 			return(NULL)
 		}
-		teamChoices <- as.list(teamOptions$TeamId)
-		setNames(teamChoices, teamOptions$TeamName)
+		teamChoices <- as.list(tmOpts$TeamId)
+		setNames(teamChoices, tmOpts$TeamName)
 		pickerInput('PredictGameHomeTeamId',
 					'Home Team',
 					choices = teamChoices,
-					choicesOpt = list(content = teamOptions$SelectDisplay))
+					choicesOpt = list(content = tmOpts$SelectDisplay))
 	})
 
 	output$PredictGameAwayTeamId <- renderUI({
-		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0){
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
 			return(NULL)
 		}
-		teamChoices <- as.list(teamOptions$TeamId)
-		setNames(teamChoices, teamOptions$TeamName)
+		teamChoices <- as.list(tmOpts$TeamId)
+		setNames(teamChoices, tmOpts$TeamName)
 		pickerInput('PredictGameAwayTeamId',
 					'Away Team',
 					choices = teamChoices,
-					choicesOpt = list(content = teamOptions$SelectDisplay))
+					choicesOpt = list(content = tmOpts$SelectDisplay))
 	})
 
 	output$PredictGameHomeSpread <- renderUI({
-		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0){
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
 			return(NULL)
 		}
 		sliderInput('PredictGameHomeSpread',
@@ -293,8 +306,8 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameAllowAdjustments <- renderUI({
-		teamOptions <- teamOptions()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0){
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
 			return(NULL)
 		}
 		checkboxInput('PredictGameAllowAdjustments',
@@ -303,9 +316,16 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeStrength <- renderUI({
-		teamOptions <- teamOptions()
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
+			return (NULL)
+		}
+		btModel <- btModel()
+		if(is.null(btModel)){
+			return(NULL)
+		}
 		teamStrengths <- teamStrengths()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -318,9 +338,16 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameAwayStrength <- renderUI({
-		teamOptions <- teamOptions()
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
+			return (NULL)
+		}
+		btModel <- btModel()
+		if(is.null(btModel)){
+			return(NULL)
+		}
 		teamStrengths <- teamStrengths()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -333,11 +360,19 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeFieldStrength <- renderUI({
-		teamOptions <- teamOptions()
+		tmOpts <- teamOptions()
+		if(is.null(tmOpts) || nrow(tmOpts) == 0){
+			return (NULL)
+		}
 		btModel <- btModel()
-		if(is.null(teamOptions) || nrow(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(btModel)){
 			return(NULL)
 		}
+		teamStrengths <- teamStrengths()
+		if(is.null(teamStrengths) || length(teamStrengths) == 0){
+			return(NULL)
+		}
+
 		sliderInput('PredictGameHomeFieldStrength',
 					'Home Field Advantage',
 					min = round(min(btModel$teamStrengths) - 1, digits = 2),
