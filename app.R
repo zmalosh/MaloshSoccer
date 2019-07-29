@@ -61,6 +61,7 @@ ui <- fluidPage(
 
 	# Define server logic required to draw a histogram
 server <- function(input, output, session) {
+	options(shiny.reactlog=TRUE)
 	useDataCache <- TRUE
 
 	source('requirements.R')
@@ -325,17 +326,17 @@ server <- function(input, output, session) {
 					ticks = TRUE)
 	})
 
-	observeEvent(input$PredictGameAllowAdjustments, {
-		if(input$PredictGameAllowAdjustments == T){
-			shinyjs::showElement('PredictGameHomeStrength')
-			shinyjs::showElement('PredictGameAwayStrength')
-			shinyjs::showElement('PredictGameHomeFieldStrength')
-		} else {
-			shinyjs::hideElement('PredictGameHomeStrength')
-			shinyjs::hideElement('PredictGameAwayStrength')
-			shinyjs::hideElement('PredictGameHomeFieldStrength')
-		}
-	})
+	# observeEvent(input$PredictGameAllowAdjustments, {
+	# 	if(input$PredictGameAllowAdjustments == T){
+	# 		shinyjs::showElement('PredictGameHomeStrength')
+	# 		shinyjs::showElement('PredictGameAwayStrength')
+	# 		shinyjs::showElement('PredictGameHomeFieldStrength')
+	# 	} else {
+	# 		shinyjs::hideElement('PredictGameHomeStrength')
+	# 		shinyjs::hideElement('PredictGameAwayStrength')
+	# 		shinyjs::hideElement('PredictGameHomeFieldStrength')
+	# 	}
+	# })
 
 	predictGameSettings <- reactive({
 		btModel <- btModel()
@@ -347,18 +348,18 @@ server <- function(input, output, session) {
 		   is.null(input$PredictGameHomeFieldStrength) ||
 		   is.null(input$PredictGameAllowAdjustments)){
 			predictGameSettings <- NULL
-		} else if(!input$PredictGameAllowAdjustments){
-			homeTeamId <- input$PredictGameHomeTeamId
-			homeStrength <- btModel$teamStrengths[as.character(homeTeamId)]
-			awayTeamId <- input$PredictGameAwayTeamId
-			awayStrength <- btModel$teamStrengths[as.character(awayTeamId)]
-			homeFieldStrength <- btModel$homeFieldStrength
-			predictGameSettings <- list(
-				HomeStrength = as.numeric(homeStrength),
-				AwayStrength = as.numeric(awayStrength),
-				HomeFieldStrength = as.numeric(homeFieldStrength),
-				HomeSpread = as.numeric(input$PredictGameHomeSpread)
-			)
+		# } else if(!input$PredictGameAllowAdjustments){
+		# 	homeTeamId <- input$PredictGameHomeTeamId
+		# 	homeStrength <- btModel$teamStrengths[as.character(homeTeamId)]
+		# 	awayTeamId <- input$PredictGameAwayTeamId
+		# 	awayStrength <- btModel$teamStrengths[as.character(awayTeamId)]
+		# 	homeFieldStrength <- btModel$homeFieldStrength
+		# 	predictGameSettings <- list(
+		# 		HomeStrength = as.numeric(homeStrength),
+		# 		AwayStrength = as.numeric(awayStrength),
+		# 		HomeFieldStrength = as.numeric(homeFieldStrength),
+		# 		HomeSpread = as.numeric(input$PredictGameHomeSpread)
+		# 	)
 		} else {
 			predictGameSettings <- list(
 				HomeStrength = as.numeric(input$PredictGameHomeStrength),
@@ -373,7 +374,7 @@ server <- function(input, output, session) {
 		predictGameSettings <- predictGameSettings()
 		teams <- leagueTeams()
 		btModel <- btModel()
-		if(is.null(predictGameSettings) || is.null(teams) || nrow(teams) == 0 || is.null(btModel)){
+		if(is.null(predictGameSettings) || is.null(teams) || nrow(teams) == 0 || is.null(btModel) || is.null(predictGameSettings$HomeFieldStrength)){
 			predictGameResults <- NULL
 		} else {
 			p <- data.frame(HomeSpread = as.numeric(predictGameSettings$HomeSpread),
