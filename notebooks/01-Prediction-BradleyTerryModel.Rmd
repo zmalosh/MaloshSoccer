@@ -37,7 +37,6 @@ library(BradleyTerry2)
 The following libraries are used for this analysis:
 
 + *tidyverse*
-+ *BradleyTerry2*
 
 # League Selection
 ```{r 'League Selection'}
