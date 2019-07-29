@@ -303,8 +303,9 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeStrength <- renderUI({
+		teamOptions <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(input$PredictGameHomeTeamId) || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -317,8 +318,9 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameAwayStrength <- renderUI({
+		teamOptions <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(input$PredictGameAwayTeamId) || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
