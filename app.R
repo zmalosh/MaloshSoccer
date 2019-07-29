@@ -90,9 +90,9 @@ server <- function(input, output, session) {
 			leagueOptions <- list('SELECT LEAGUE...' = notSelectedVal)
 		} else {
 			if (input$Season == currentSeasonVal){
-				seasonLeagues <- leagues %>% filter(IsCurrentSeason & SeasonStartDate < as.Date(Sys.time()) ) %>% arrange(Country, LeagueName)
+				seasonLeagues <- leagues %>% filter(IsCurrentSeason & SeasonStartDate < as.Date(Sys.time())) %>% arrange(Country, LeagueName)
 			} else{
-				seasonLeagues <- leagues %>% filter(Season == input$Season) %>% arrange(Country, LeagueName)
+				seasonLeagues <- leagues %>% filter(Season == input$Season & SeasonStartDate < as.Date(Sys.time())) %>% arrange(Country, LeagueName)
 			}
 			leagueOptions <- c(notSelectedVal, as.list(seasonLeagues$LeagueId))
 			leagueNames <- c('NONE', paste0(seasonLeagues$Country, ' - ', seasonLeagues$LeagueName))
