@@ -3,12 +3,13 @@ source('src/data/get_api_football_json_from_url.R')
 
 get_leagues <- function(allowCache = TRUE){
 	localPath <- 'data/raw/leagues.csv'
+	cacheExpirationMin <- 24 * 60
 
 	if(allowCache){
 		if(!dir.exists(dirname(localPath))){
 			dir.create(dirname(localPath))
 		}
-		if(file.exists(localPath)){
+		if(file.exists(localPath) && (file.info(localPath)$ctime + (cacheExpirationMin * 60)) > Sys.time()){
 			cols <- cols(
 				LeagueId = col_double(),
 				LeagueName = col_character(),

@@ -3,12 +3,13 @@ source('src/data/get_api_football_json_from_url.R')
 
 get_teams_by_league <- function(leagueId, allowCache = TRUE){
 	localPath <- paste0(getwd(), '/data/raw/teams/teams_', str_pad(leagueId, 4, pad = '0'), '.csv')
+	cacheExpirationMin <- 24 * 60
 
 	if(allowCache){
 		if(!dir.exists(dirname(localPath))){
 			dir.create(dirname(localPath))
 		}
-		if(file.exists(localPath)){
+		if(file.exists(localPath) && (file.info(localPath)$ctime + (cacheExpirationMin * 60)) > Sys.time()){
 			cols <- cols(
 				TeamId = col_double(),
 				TeamName = col_character(),

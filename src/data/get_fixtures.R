@@ -4,12 +4,13 @@ source('src/data/get_api_football_json_from_url.R')
 get_fixtures_by_league <- function(leagueId, allowCache = TRUE){
 	url <- paste0('https://api-football-v1.p.rapidapi.com/v2/fixtures/league/', leagueId)
 	localPath <- paste0(getwd(), '/data/raw/leagueFixtures/fixtures_', str_pad(leagueId, 4, pad = '0'), '.csv')
+	cacheExpirationMin <- 15
 
 	if(allowCache){
 		if(!dir.exists(dirname(localPath))){
 			dir.create(dirname(localPath))
 		}
-		if(file.exists(localPath)){
+		if(file.exists(localPath) && (file.info(localPath)$ctime + (cacheExpirationMin * 60)) > Sys.time()){
 			cols <- cols(
 				FixtureId = col_double(),
 				LeagueId = col_double(),

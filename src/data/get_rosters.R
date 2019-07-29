@@ -4,12 +4,13 @@ source('src/data/get_api_football_json_from_url.R')
 get_roster_by_team <- function(teamId, allowCache = TRUE){
 	url <- paste0('https://api-football-v1.p.rapidapi.com/v2/players/team/', teamId)
 	localPath <- paste0(getwd(), '/data/raw/rosters/roster_', str_pad(teamId, 6, pad = '0'), '.csv')
+	cacheExpirationMin <- 120
 
 	if(allowCache){
 		if(!dir.exists(dirname(localPath))){
 			dir.create(dirname(localPath))
 		}
-		if(file.exists(localPath)){
+		if(file.exists(localPath) && (file.info(localPath)$ctime + (cacheExpirationMin * 60)) > Sys.time()){
 			roster <- read_csv(localPath)
 			if(nrow(roster) == 0){
 				roster <- NULL
