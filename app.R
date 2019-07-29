@@ -10,6 +10,7 @@
 library(shiny)
 library(DT)
 library(shinyjs)
+library(shinyWidgets)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -69,14 +70,15 @@ server <- function(input, output, session) {
 	source('src/data/get_fixtures.R')
 	source('src/data/get_teams.R')
 	source('src/models/bradleyTerry.R')
+
+	tableLogoHeight <- 20
 	notSelectedVal <- -1
 	currentSeasonVal <- -2
+
 	leagues <- get_leagues(allowCache = useDataCache)
 	seasonOptions <- as.list(c(currentSeasonVal, sort(unique(leagues$Season), decreasing = TRUE)))
 	seasonNames <- c('CURRENT', sort(unique(as.character(leagues$Season)), decreasing = TRUE))
-	print(seasonNames)
 	names(seasonOptions) <- seasonNames
-	print(seasonOptions)
 	output$Season <- renderUI({
 		selectInput('Season',
 					'Season',
@@ -127,7 +129,6 @@ server <- function(input, output, session) {
 		}
 	})
 
-	tableLogoHeight <- 20
 	btModel <- reactive({
 		games <- games()
 		if(is.null(games) || nrow(games) == 0){
@@ -218,11 +219,13 @@ server <- function(input, output, session) {
 			finalGames <- NULL
 		} else {
 			gamePredictions <- mapply(btModel$predictGameByIds, homeTeamId = games$HomeTeamId, awayTeamId = games$AwayTeamId)
-			games$HomeProb <- round(unlist(gamePredictions['HomeWinPct',]), digits = 4)
-			games$DrawProb <- round(unlist(gamePredictions['DrawWinPct',]), digits = 4)
-			games$AwayProb <- round(unlist(gamePredictions['AwayWinPct',]), digits = 4)
+			games$GameDate <- lapply(X = str_split(games$GameDate, 'T'), FUN = function(x){x[1]})
+			games$HomeProb <- str_pad(round(unlist(gamePredictions['HomeWinPct',]), digits = 4), width = 6, side = 'right', pad = '0')
+			games$DrawProb <- str_pad(round(unlist(gamePredictions['DrawWinPct',]), digits = 4), width = 6, side = 'right', pad = '0')
+			games$AwayProb <- str_pad(round(unlist(gamePredictions['AwayWinPct',]), digits = 4), width = 6, side = 'right', pad = '0')
 			finalGames <- games %>% transform(Status = StatusShort) %>%
-				mutate(Score = paste0(HomeScore, '-', AwayScore),
+				mutate(GameDate <- str_split(GameDate, 'T')[1],
+					   Score = paste0(HomeScore, '-', AwayScore),
 					   HomeTeam = paste0('<img src="',HomeTeamLogo,'" height="',tableLogoHeight,'"></img> ',HomeTeamName),
 					   AwayTeam = paste0('<img src="',AwayTeamLogo,'" height="',tableLogoHeight,'"></img> ',AwayTeamName)) %>%
 				filter(StatusShort == 'FT') %>%
@@ -238,37 +241,46 @@ server <- function(input, output, session) {
 			teamOptions <- NULL
 		} else {
 			allTeamOptions <- teams %>%
-				select(TeamId, TeamName) %>%
+				transform(SelectDisplay = sprintf('<div><img src="%s" height="%s"></img>&nbsp;&nbsp;<span>%s</span></div>',
+												  LogoUrl,
+												  tableLogoHeight,
+												  TeamName)) %>%
+				select(TeamId, TeamName, LogoUrl, SelectDisplay) %>%
 				unique() %>%
 				arrange(TeamName)
-			teamOptions <- as.list(allTeamOptions$TeamId)
-			setNames(teamOptions, allTeamOptions$TeamName)
+			teamOptions <- allTeamOptions
 		}
 	})
 
 	output$PredictGameHomeTeamId <- renderUI({
-		t <- teamOptions()
-		if(is.null(t) || length(t) == 0){
+		teamOptions <- teamOptions()
+		if(is.null(teamOptions) || length(teamOptions) == 0){
 			return(NULL)
 		}
-		selectInput('PredictGameHomeTeamId',
+		teamChoices <- as.list(teamOptions$TeamId)
+		setNames(teamChoices, teamOptions$TeamName)
+		pickerInput('PredictGameHomeTeamId',
 					'Home Team',
-					choices = t)
+					choices = teamChoices,
+					choicesOpt = list(content = teamOptions$SelectDisplay))
 	})
 
 	output$PredictGameAwayTeamId <- renderUI({
-		t <- teamOptions()
-		if(is.null(t) || length(t) == 0){
+		teamOptions <- teamOptions()
+		if(is.null(teamOptions) || length(teamOptions) == 0){
 			return(NULL)
 		}
-		selectInput('PredictGameAwayTeamId',
+		teamChoices <- as.list(teamOptions$TeamId)
+		setNames(teamChoices, teamOptions$TeamName)
+		pickerInput('PredictGameAwayTeamId',
 					'Away Team',
-					choices = t)
+					choices = teamChoices,
+					choicesOpt = list(content = teamOptions$SelectDisplay))
 	})
 
 	output$PredictGameHomeSpread <- renderUI({
-		t <- teamOptions()
-		if(is.null(t) || length(t) == 0){
+		teamOptions <- teamOptions()
+		if(is.null(teamOptions) || length(teamOptions) == 0){
 			return(NULL)
 		}
 		sliderInput('PredictGameHomeSpread',
@@ -281,8 +293,8 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameAllowAdjustments <- renderUI({
-		t <- teamOptions()
-		if(is.null(t) || length(t) == 0){
+		teamOptions <- teamOptions()
+		if(is.null(teamOptions) || length(teamOptions) == 0){
 			return(NULL)
 		}
 		checkboxInput('PredictGameAllowAdjustments',
@@ -291,9 +303,8 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeStrength <- renderUI({
-		t <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(input$PredictGameHomeTeamId) || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -306,9 +317,8 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameAwayStrength <- renderUI({
-		t <- teamOptions()
 		teamStrengths <- teamStrengths()
-		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(input$PredictGameAwayTeamId) || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 
@@ -321,9 +331,9 @@ server <- function(input, output, session) {
 	})
 
 	output$PredictGameHomeFieldStrength <- renderUI({
-		t <- teamOptions()
+		teamOptions <- teamOptions()
 		btModel <- btModel()
-		if(is.null(t) || length(t) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
+		if(is.null(teamOptions) || length(teamOptions) == 0 || is.null(teamStrengths) || length(teamStrengths) == 0){
 			return(NULL)
 		}
 		sliderInput('PredictGameHomeFieldStrength',
