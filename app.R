@@ -69,7 +69,8 @@ server <- function(input, output, session) {
 	source('src/data/get_leagues.R')
 	source('src/data/get_fixtures.R')
 	source('src/data/get_teams.R')
-	source('src/models/bradleyTerry.R')
+
+	library(BradleyTerry)
 
 	tableLogoHeight <- 20
 	notSelectedVal <- -1
@@ -141,11 +142,11 @@ server <- function(input, output, session) {
 		if(is.null(games) || nrow(games) == 0){
 			btModel <- NULL
 		} else {
-			btModel <- get_bradley_terry_model(gameIds = games$FixtureId,
-											   homeTeamIds = as.character(games$HomeTeamId),
-											   awayTeamIds = as.character(games$AwayTeamId),
-											   homeScore = games$HomeScore,
-											   awayScore = games$AwayScore)
+			btModel <- bradley_terry(gameIds = games$FixtureId,
+									 homeTeamIds = as.character(games$HomeTeamId),
+									 awayTeamIds = as.character(games$AwayTeamId),
+									 homeScore = games$HomeScore,
+									 awayScore = games$AwayScore)
 		}
 	})
 
