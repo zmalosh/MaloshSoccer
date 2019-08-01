@@ -70,7 +70,7 @@ server <- function(input, output, session) {
 	source('src/data/get_fixtures.R')
 	source('src/data/get_teams.R')
 
-	library(BradleyTerry)
+	library(SportPredictR)
 
 	tableLogoHeight <- 20
 	notSelectedVal <- -1

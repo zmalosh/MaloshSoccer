@@ -29,8 +29,8 @@ update_wd()
 source('requirements.R')
 source('src/data/get_fixtures.R')
 source('src/data/get_leagues.R')
-
-library(BradleyTerry2)
+devtools::install_github('zmalosh/SportPredictR')
+library(SportPredictR)
 ```
 
 # Included Libraries
