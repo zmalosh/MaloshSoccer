@@ -56,8 +56,8 @@ ui <- fluidPage(
 						 		   uiOutput('PredictGameHomeFieldStrength'))
 						 ),
 						 DT::dataTableOutput('PredictGameResultsTable')
-				),
-				tabPanel('Upcoming Games', h3('THIS TAB IS NOT YET IMPLEMENTED. GO AWAY.'))
+				)
+				# tabPanel('Upcoming Games', h3('THIS TAB IS NOT YET IMPLEMENTED. GO AWAY.'))
 			)
 		)
 	)
