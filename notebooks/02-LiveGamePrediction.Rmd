@@ -1,0 +1,45 @@
+---
+title: "Live Game Model"
+author: "Zachary P. Malosh"
+date: "July 30, 2019"
+output:
+  pdf_document:
+    toc: no
+    toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+\newpage
+\tableofcontents
+\newpage
+
+```{r setup, include=FALSE}
+update_wd <- function(){
+  if(toupper(basename(getwd())) == 'NOTEBOOKS'){
+    setwd('..')
+  }
+}
+
+options(stringsAsFactors = FALSE)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+update_wd()
+source('requirements.R')
+source('src/data/get_fixtures.R')
+source('src/data/get_leagues.R')
+
+lastDate <- ymd('2019-07-30')
+```
+
+# League Selection
+The 2019 MLS season is going live now. We will use that season to create the live game model with only games completed prior to 2019 JUL 30 in the dataset.
+
+```{r 'Get Games'}
+
+```
+
+# Get All Games
+For each league, we will use the current season and the previous season games to determine the probability of victory as a game is live. This will also include the relative strength for a team for the current season. The strength will be consistent for each team for each season. This is not ideal as a comeback in a game will impact both the probability of live victory and the team's strength. This is a first shot at this, so that is okay.
+
