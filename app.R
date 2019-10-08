@@ -29,6 +29,10 @@ ui <- fluidPage(
 		# Show a plot of the generated distribution
 		mainPanel(
 			tabsetPanel(
+				tabPanel('Completed Games', DT::dataTableOutput('FinalGamesTable')),
+				tabPanel('Teams',
+						 uiOutput('HomeFieldAdvantage'),
+						 DT::dataTableOutput('TeamStrengths')),
 				tabPanel('Predict Game',
 						 fluidRow(
 						 	column(3,
@@ -50,11 +54,7 @@ ui <- fluidPage(
 						 ),
 						 DT::dataTableOutput('PredictGameResultsTable')
 				),
-				tabPanel('Upcoming Games', h3('THIS TAB IS NOT YET IMPLEMENTED. GO AWAY.')),
-				tabPanel('Teams',
-						 uiOutput('HomeFieldAdvantage'),
-						 DT::dataTableOutput('TeamStrengths')),
-				tabPanel('Completed Games', DT::dataTableOutput('FinalGamesTable'))
+				tabPanel('Upcoming Games', h3('THIS TAB IS NOT YET IMPLEMENTED. GO AWAY.'))
 			)
 		)
 	)
@@ -62,7 +62,8 @@ ui <- fluidPage(
 
 	# Define server logic required to draw a histogram
 server <- function(input, output, session) {
-	options(shiny.reactlog=TRUE)
+	options(shiny.reactlog = TRUE,
+			stringsAsFactors = FALSE)
 	useDataCache <- TRUE
 
 	source('requirements.R')
@@ -142,11 +143,11 @@ server <- function(input, output, session) {
 		if(is.null(games) || nrow(games) == 0){
 			btModel <- NULL
 		} else {
-			btModel <- bradley_terry(gameIds = games$FixtureId,
-									 homeTeamIds = as.character(games$HomeTeamId),
-									 awayTeamIds = as.character(games$AwayTeamId),
-									 homeScore = games$HomeScore,
-									 awayScore = games$AwayScore)
+			btModel <- SportPredictR::bradley_terry(gameIds = games$FixtureId,
+													homeTeamIds = as.character(games$HomeTeamId),
+													awayTeamIds = as.character(games$AwayTeamId),
+													homeScore = games$HomeScore,
+													awayScore = games$AwayScore)
 		}
 	})
 
