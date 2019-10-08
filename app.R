@@ -28,9 +28,12 @@ ui <- fluidPage(
 
 		# Show a plot of the generated distribution
 		mainPanel(
-			tabsetPanel(
-				tabPanel('Completed Games', DT::dataTableOutput('FinalGamesTable')),
-				tabPanel('Teams',
+			tabsetPanel(id = 'tabsPanel',
+				tabPanel(title = 'Completed Games',
+						 value = 'tabCompletedGames',
+						 DT::dataTableOutput('FinalGamesTable')),
+				tabPanel(title = 'Teams',
+						 value = 'tabTeams',
 						 uiOutput('HomeFieldAdvantage'),
 						 DT::dataTableOutput('TeamStrengths')),
 				tabPanel('Predict Game',
@@ -115,6 +118,7 @@ server <- function(input, output, session) {
 		if(is.null(input$LeagueId)){
 			return (NULL)
 		}
+		updateTabsetPanel(session, 'tabsPanel', selected = 'tabCompletedGames')
 		leagueId <- input$LeagueId
 	})
 
